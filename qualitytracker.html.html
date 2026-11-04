@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QualityTrack: Inspection Log and Defect Analysis</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#15202b;--mute:#58656f;--line:#dbe1e7;--brand:#0f6b5c;--bi:#fff;--bad:#c0392b;--bb:#fbe9e7;--ok:#1e8449;--ob:#e3f3e8;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1418;--card:#172027;--ink:#e7ecf0;--mute:#9aa7b1;--line:#2a3640;--brand:#3fb59f;--bi:#06201b;--bad:#ff7b6b;--bb:#3a1f1c;--ok:#5fd08a;--ob:#16301f;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1418;--card:#172027;--ink:#e7ecf0;--mute:#9aa7b1;--line:#2a3640;--brand:#3fb59f;--bi:#06201b;--bad:#ff7b6b;--bb:#3a1f1c;--ok:#5fd08a;--ob:#16301f;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.45}
+.wrap{max-width:1120px;margin:0 auto;padding:16px}
+h1{font-size:1.5rem;margin:0}h2{font-size:1.05rem;margin:0 0 12px}
+.sub{color:var(--mute);margin:4px 0 16px}
+.grid{display:grid;gap:16px;margin-bottom:16px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.two{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)}
+@media(max-width:820px){.two{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.kpi b{display:block;font-size:1.6rem}.kpi span,.mute{color:var(--mute);font-size:.85rem}
+label{display:block;font-size:.82rem;color:var(--mute);margin:10px 0 4px}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px}
+button.p{background:var(--brand);color:var(--bi);border-color:var(--brand);font-weight:600}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.br{display:grid;grid-template-columns:78px 1fr 92px;gap:10px;align-items:center;margin:9px 0;font-size:.9rem}
+.track{position:relative;height:12px;background:var(--line);border-radius:6px}
+.fill{height:100%;border-radius:6px}
+.th{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.flag{color:var(--bad);font-weight:600}
+.ins{background:var(--bb);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.92rem}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem;min-width:720px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mute);font-weight:600}
+.pill{padding:2px 8px;border-radius:99px;font-size:.78rem;font-weight:600}
+.pass{background:var(--ob);color:var(--ok)}.fail{background:var(--bb);color:var(--bad)}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}.filters select{width:auto}
+.x{padding:2px 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>QualityTrack</h1>
+<p class="sub">Record each quality check, log the defects found, and see which batches and production stages are going wrong.</p>
+
+<div class="grid kpis" id="k"></div>
+
+<div class="grid two">
+<div class="card">
+<h2>Record an inspection</h2>
+<form id="f">
+<div class="r2"><div><label for="batch">Batch ID</label><input id="batch" required placeholder="e.g. B-1046"></div>
+<div><label for="product">Product</label><input id="product" required placeholder="e.g. Pump casing"></div></div>
+<div class="r2"><div><label for="stage">Production stage</label><select id="stage"></select></div>
+<div><label for="check">Quality check</label><select id="check"></select></div></div>
+<div class="r2"><div><label for="insp">Units inspected</label><input id="insp" type="number" min="1" required value="50"></div>
+<div><label for="bad">Defective units</label><input id="bad" type="number" min="0" required value="0"></div></div>
+<div id="dw" hidden><div class="r2"><div><label for="defect">Main defect type</label><select id="defect"></select></div>
+<div><label for="sev">Severity</label><select id="sev"></select></div></div></div>
+<label for="notes">Notes (optional)</label><textarea id="notes" rows="2"></textarea>
+<div class="acts"><button class="p" type="submit">Save inspection</button><span class="mute" id="msg" role="status"></span></div>
+</form>
+</div>
+
+<div class="card">
+<h2>Where the problems are</h2>
+<div class="r2" style="align-items:end"><div><label for="th">Defect-rate limit (%)</label><input id="th" type="number" min="0.1" step="0.1" value="5"></div><div class="mute">Anything at or above the limit is flagged.</div></div>
+<div class="ins" id="ins" style="margin-top:12px"></div>
+<h2 style="font-size:.95rem">By batch</h2><div id="bb"></div>
+<h2 style="font-size:.95rem;margin-top:16px">By production stage</h2><div id="bs"></div>
+<h2 style="font-size:.95rem;margin-top:16px">Most common defects (units)</h2><div id="bd"></div>
+</div>
+</div>
+
+<div class="card">
+<h2>Inspection records</h2>
+<div class="filters"><select id="fb" aria-label="Filter by batch"></select><select id="fs" aria-label="Filter by stage"></select>
+<button id="smp" type="button">Load sample data</button><button id="clr" type="button">Clear all data</button></div>
+<div class="scroll"><table><thead><tr><th>Date</th><th>Batch</th><th>Product</th><th>Stage</th><th>Check</th><th>Inspected</th><th>Defective</th><th>Result</th><th>Defect</th><th>Severity</th><th>Notes</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+<p class="mute" id="em"></p>
+<p class="mute"> Flaco's group of company.</p>
+</div>
+</div>
+
+<script>
+const KEY='qualitytrack-v1';
+const STAGES=['Cutting','Machining','Assembly','Welding','Painting','Packaging'];
+const CHECKS=['Dimensional','Visual','Functional','Safety'];
+const DEFECTS=['Scratch','Crack','Misalignment','Wrong dimension','Leak','Paint flaw','Missing part','Other'];
+const SEV=['Minor','Major','Critical'];
+let recs=[];
+try{recs=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(recs))recs=[]}catch(e){recs=[]}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(recs))}catch(e){}};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const opts=(a,first)=>(first?'<option value="">'+first+'</option>':'')+a.map(x=>'<option>'+esc(x)+'</option>').join('');
+$('stage').innerHTML=opts(STAGES);$('check').innerHTML=opts(CHECKS);$('defect').innerHTML=opts(DEFECTS);$('sev').innerHTML=opts(SEV);
+
+function agg(key){const m={};recs.forEach(r=>{const o=m[r[key]]=m[r[key]]||{i:0,b:0};o.i+=r.insp;o.b+=r.bad});
+ return Object.entries(m).map(([k,v])=>({k,i:v.i,b:v.b,rate:v.i?v.b/v.i*100:0})).sort((a,b)=>b.rate-a.rate)}
+
+function bars(el,rows,th){
+ if(!rows.length){el.innerHTML='<p class="mute">No data yet.</p>';return}
+ const max=Math.max(th*2,rows[0].rate);
+ el.innerHTML=rows.map(r=>{const f=r.rate>=th;
+  return '<div class="br" title="'+r.b+' defective of '+r.i+' inspected"><span>'+esc(r.k)+'</span><div class="track"><div class="fill" style="width:'+(r.rate/max*100)+'%;background:var('+(f?'--bad':'--ok')+')"></div><i class="th" style="left:'+(th/max*100)+'%"></i></div><span class="'+(f?'flag':'')+'">'+r.rate.toFixed(1)+'%'+(f?' ⚠':'')+'</span></div>'}).join('')}
+
+function render(){
+ const th=Math.max(0.1,+$('th').value||5);
+ const T=recs.reduce((a,r)=>({i:a.i+r.insp,b:a.b+r.bad}),{i:0,b:0});
+ const bR=agg('batch'),sR=agg('stage');
+ const kp=(n,v)=>'<div class="card kpi"><b>'+v+'</b><span>'+n+'</span></div>';
+ $('k').innerHTML=kp('Units inspected',T.i)+kp('Defective units',T.b)+kp('Overall defect rate',T.i?(T.b/T.i*100).toFixed(1)+'%':'–')+
+  kp('Batches over limit',bR.filter(r=>r.rate>=th).length+' of '+bR.length)+kp('Stages over limit',sR.filter(r=>r.rate>=th).length+' of '+sR.length);
+ if(recs.length){const wb=bR[0],ws=sR[0];
+  $('ins').innerHTML='Highest-rate batch: <b>'+esc(wb.k)+'</b> ('+wb.rate.toFixed(1)+'%). Highest-rate stage: <b>'+esc(ws.k)+'</b> ('+ws.rate.toFixed(1)+'%).'+(wb.rate>=th||ws.rate>=th?' Review the flagged items first.':' Nothing is over the limit.')}
+ else $('ins').textContent='Record an inspection or load sample data to see the analysis.';
+ bars($('bb'),bR,th);bars($('bs'),sR,th);
+ const dm={};recs.forEach(r=>{if(r.defect)dm[r.defect]=(dm[r.defect]||0)+r.bad});
+ const dr=Object.entries(dm).sort((a,b)=>b[1]-a[1]).slice(0,5),dmax=dr.length?dr[0][1]:1;
+ $('bd').innerHTML=dr.length?dr.map(([k,v])=>'<div class="br"><span>'+esc(k)+'</span><div class="track"><div class="fill" style="width:'+(v/dmax*100)+'%;background:var(--brand)"></div></div><span>'+v+'</span></div>').join(''):'<p class="mute">No defects recorded.</p>';
+ const sb=$('fb').value,ss=$('fs').value;
+ $('fb').innerHTML=opts([...new Set(recs.map(r=>r.batch))].sort(),'All batches');$('fb').value=sb;
+ $('fs').innerHTML=opts(STAGES,'All stages');$('fs').value=ss;
+ const rows=recs.filter(r=>(!$('fb').value||r.batch===$('fb').value)&&(!$('fs').value||r.stage===$('fs').value));
+ $('tb').innerHTML=rows.map(r=>'<tr><td>'+esc(r.date)+'</td><td>'+esc(r.batch)+'</td><td>'+esc(r.product)+'</td><td>'+esc(r.stage)+'</td><td>'+esc(r.check)+'</td><td>'+r.insp+'</td><td>'+r.bad+'</td><td><span class="pill '+(r.bad?'fail':'pass')+'">'+(r.bad?'Fail':'Pass')+'</span></td><td>'+esc(r.defect||'–')+'</td><td>'+esc(r.sev||'–')+'</td><td>'+esc(r.notes||'')+'</td><td><button class="x" data-id="'+r.id+'" aria-label="Delete record">✕</button></td></tr>').join('');
+ $('em').textContent=rows.length?'':'No inspection records to show.';
+}
+
+$('bad').addEventListener('input',()=>{$('dw').hidden=!(+$('bad').value>0)});
+$('f').addEventListener('submit',e=>{e.preventDefault();
+ const insp=+$('insp').value,bad=+$('bad').value;
+ if(bad>insp){$('msg').textContent='Defective units can’t exceed units inspected.';return}
+ recs.unshift({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),date:new Date().toISOString().slice(0,10),batch:$('batch').value.trim().toUpperCase(),product:$('product').value.trim(),stage:$('stage').value,check:$('check').value,insp,bad,defect:bad?$('defect').value:'',sev:bad?$('sev').value:'',notes:$('notes').value.trim()});
+ save();$('msg').textContent='Saved.';$('bad').value=0;$('dw').hidden=true;$('notes').value='';render()});
+$('tb').addEventListener('click',e=>{const id=e.target.dataset&&e.target.dataset.id;if(!id)return;recs=recs.filter(r=>r.id!==id);save();render()});
+['th','fb','fs'].forEach(i=>$(i).addEventListener('input',render));
+$('smp').addEventListener('click',()=>{
+ const bt=['B-1041','B-1042','B-1043','B-1044','B-1045'],df={Cutting:'Wrong dimension',Machining:'Misalignment',Assembly:'Missing part',Welding:'Crack',Painting:'Paint flaw',Packaging:'Scratch'},ck={Cutting:'Dimensional',Machining:'Dimensional',Assembly:'Functional',Welding:'Safety',Painting:'Visual',Packaging:'Visual'};
+ let s=7;const rnd=()=>(s=(s*16807)%2147483647)/2147483647,out=[];
+ bt.forEach((b,bi)=>STAGES.forEach(st=>{const insp=40+Math.floor(rnd()*20);let p=.02;if(b==='B-1043')p+=.06;if(st==='Welding')p+=.05;if(b==='B-1045'&&st==='Painting')p+=.08;
+  const bad=Math.min(insp,Math.round(insp*p*(.6+rnd()*.8)));const d=new Date();d.setDate(d.getDate()-(4-bi)*2);
+  out.push({id:'s'+b+st,date:d.toISOString().slice(0,10),batch:b,product:bi%2?'Pump casing':'Gear housing',stage:st,check:ck[st],insp,bad,defect:bad?df[st]:'',sev:bad?(bad/insp>.08?'Major':'Minor'):'',notes:''})}));
+ recs=out.concat(recs.filter(r=>!String(r.id).startsWith('s')));save();render()});
+let armed=false;
+$('clr').addEventListener('click',()=>{if(!armed){armed=true;$('clr').textContent='Click again to confirm';setTimeout(()=>{armed=false;$('clr').textContent='Clear all data'},4000);return}
+ recs=[];save();armed=false;$('clr').textContent='Clear all data';render()});
+render();
+</script>
+</body>
+</html>
