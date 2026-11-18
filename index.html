@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QualityGate: batch inspection and defect tracking</title>
+<style>
+:root{--bg:#f2f3f0;--sf:#fff;--ink:#16252b;--mu:#5d6b71;--ln:#d9ddd8;--ac:#17606e;--acs:#dcebed;--on:#fff;--ok:#1d7a4b;--no:#bf3a22;--wa:#a8680a;--in:#2b63b0;--pe:#6b767c;--ho:#7a4aa8;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101a1e;--sf:#17262c;--ink:#e6eeee;--mu:#93a4a9;--ln:#2b3d44;--ac:#5cb8c8;--acs:#1c3a41;--on:#0b1417;--ok:#4ec58a;--no:#ff7a63;--wa:#e8a94a;--in:#78a6f0;--pe:#98a5ab;--ho:#c19af0;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#101a1e;--sf:#17262c;--ink:#e6eeee;--mu:#93a4a9;--ln:#2b3d44;--ac:#5cb8c8;--acs:#1c3a41;--on:#0b1417;--ok:#4ec58a;--no:#ff7a63;--wa:#e8a94a;--in:#78a6f0;--pe:#98a5ab;--ho:#c19af0;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 4rem)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--sf);z-index:10}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--sf);border-bottom:1px solid var(--ln);display:flex;gap:1rem;align-items:center;flex-wrap:wrap;padding:.55rem 1rem}
+.logo{display:flex;align-items:center;gap:.5rem;font-weight:800;font-size:1.1rem;letter-spacing:-.01em}
+nav{display:flex;gap:.2rem;overflow-x:auto;max-width:100%}
+nav a{padding:.4rem .8rem;border-radius:6px;color:var(--mu);text-decoration:none;font-weight:600;white-space:nowrap}
+nav a[aria-current=page]{background:var(--acs);color:var(--ac)}
+main{max-width:1080px;margin:0 auto;padding:1rem;display:grid;gap:1rem}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:1rem 1.1rem}
+h2{margin:0 0 .7rem;font-size:1.15rem}h3{margin:1rem 0 .4rem;font-size:.95rem}p{margin:.2rem 0}
+.mu{color:var(--mu)}.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em}.r{text-align:right}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse}
+th{text-align:left;color:var(--mu);font-weight:600;font-size:.85rem;padding:.4rem .6rem;border-bottom:1px solid var(--ln);white-space:nowrap}
+td{padding:.5rem .6rem;border-bottom:1px solid var(--ln);vertical-align:top}
+tr[data-a]{cursor:pointer}tr.on,tr[data-a]:hover{background:var(--acs)}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.7rem;align-items:end}
+label{display:grid;gap:.2rem;font-weight:600;font-size:.85rem}
+input,select{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--ln);border-radius:6px;padding:.45rem .55rem;min-width:0}
+button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--ac);background:var(--ac);color:var(--on);border-radius:6px;padding:.5rem .9rem}
+button.ghost{background:transparent;color:var(--ac)}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.btns{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem}.hd{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
+.chip{display:inline-block;padding:.05rem .55rem;border-radius:99px;font-size:.8rem;font-weight:700;white-space:nowrap;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.ok{--c:var(--ok)}.no{--c:var(--no)}.wa{--c:var(--wa)}.in{--c:var(--in)}.pe{--c:var(--pe)}.ho{--c:var(--ho)}
+.cr{border:1px solid var(--ln);border-radius:8px;padding:.6rem .8rem;margin:.6rem 0}.cr legend{font-weight:700;padding:0 .3rem}
+.pf{display:flex;gap:1.2rem;margin-top:.3rem}.pf label{display:flex;gap:.4rem;align-items:center;font-size:.95rem}
+.def{display:none;margin-top:.6rem}.cr:has(input[value=p]:checked){border-color:var(--ok)}
+.cr:has(input[value=f]:checked){border-color:var(--no)}.cr:has(input[value=f]:checked) .def{display:grid}
+.msg{color:var(--no);font-weight:600;min-height:1.4rem}.ls{margin:.2rem 0;padding-left:1.2rem}
+.kp,.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.7rem}
+.kp div,.stg{border:1px solid var(--ln);border-radius:8px;padding:.6rem .8rem;background:var(--sf)}
+.kp b{display:block;font-size:1.7rem;line-height:1.2;font-variant-numeric:tabular-nums}
+.stg.hot{border-color:var(--no)}.stg b{font-size:2rem;font-variant-numeric:tabular-nums}
+.bar{display:block;height:8px;background:var(--ln);border-radius:4px;overflow:hidden;min-width:70px}.bar i{display:block;height:100%}
+.mix{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--ln)}.mix span{background:var(--c)}
+.lgs{display:flex;gap:1rem;flex-wrap:wrap;margin-top:.5rem;font-size:.85rem}
+.lg i{display:inline-block;width:.7rem;height:.7rem;border-radius:2px;background:var(--c);margin-right:.35rem}
+footer{max-width:1080px;margin:0 auto;padding:0 1rem 1.5rem;color:var(--mu);font-size:.85rem;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}
+</style></head>
+<body>
+<header><div class="logo"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="24" height="24" rx="6" fill="var(--ac)"/><path d="M7 13.5l4 4 8-9" fill="none" stroke="var(--on)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>QualityGate</div>
+<nav id="nav"><a href="#batches">Batches</a><a href="#inspect">Inspect</a><a href="#reports">Reports</a><a href="#criteria">Criteria</a><a href="#inspectors">Inspectors</a></nav></header>
+<main id="app"></main>
+<footer><span>Data is saved in this browser only.</span><button class="ghost" data-a="reset" id="rs">Reset demo data</button></footer>
+<script>
+const T=['Incoming','In-process','Final'],DT=['Dimensional','Surface','Material','Assembly','Functional','Cosmetic','Labelling','Other'],SV=['Minor','Major','Critical'],SO=['Approved','In inspection','Pending','Rework','Rejected','Hold'];
+const stc={Approved:'ok','In inspection':'in',Pending:'pe',Rework:'wa',Rejected:'no',Hold:'ho'},sevc={Minor:'in',Major:'wa',Critical:'no'},KEY='qualitygate-v1';
+const q=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>new Date().toISOString().slice(0,10),uid=p=>p+Math.random().toString(36).slice(2,8),sum=a=>a.reduce((t,x)=>t+(+x.qty||0),0);
+const opt=a=>a.map(x=>`<option>${x}</option>`).join(''),empty='<tr><td colspan="9" class="mu">Nothing here yet.</td></tr>';
+const chip=(s,c)=>`<span class="chip ${c||stc[s]}">${s}</span>`,bar=(p,c)=>`<span class="bar"><i style="width:${Math.min(100,Math.round(p))}%;background:var(--${c})"></i></span>`;
+function seed(){
+ const c=[['Dimensional tolerance','Incoming','Bore 20.00 ± 0.02 mm'],['Material certificate check','Incoming','Mill certificate matches purchase order'],['Weld and joint integrity','In-process','No cracks or porosity'],['Surface finish','In-process','Ra 0.8 µm or better'],['Leak test','Final','No leak at 6 bar for 30 s'],['Labelling and packaging','Final','Label legible, count correct']].map((x,i)=>({id:'c'+(i+1),name:x[0],stage:x[1],spec:x[2],active:true}));
+ const ins=[['Priya Nair','QI-104','Incoming QC, Line A'],['Tomas Okoye','QI-117','In-process QC, Line B'],['Lena Fischer','QI-122','Final test bay']].map((x,i)=>({id:'i'+(i+1),name:x[0],code:x[1],role:x[2]}));
+ const b=[['B-2611-001','Hydraulic valve body',500,'Line A','2026-10-26'],['B-2611-002','Hydraulic valve body',500,'Line A','2026-10-29'],['B-2611-003','Bearing housing',300,'Line B','2026-10-31'],['B-2611-004','Pump cover',250,'Line B','2026-11-02'],['B-2611-005','Bearing housing',300,'Line C','2026-11-03']].map((x,i)=>({id:'b'+(i+1),no:x[0],product:x[1],qty:x[2],line:x[3],date:x[4],hold:false}));
+ const F=(type,sev,qty,note)=>({type,sev,qty,note}),run=(bi,ii,date,rs)=>({id:uid('n'),batchId:'b'+bi,inspId:'i'+ii,date,results:rs.map(r=>({cid:'c'+r[0],pass:!r[1],defect:r[1]||null}))});
+ return{criteria:c,inspectors:ins,batches:b,inspections:[run(1,1,'2026-10-27',[[1],[2]]),run(1,2,'2026-10-28',[[3],[4]]),run(1,3,'2026-10-29',[[5],[6]]),run(2,1,'2026-10-30',[[1],[2]]),run(2,2,'2026-10-31',[[3,F('Assembly','Major',12,'Cracked weld at port flange')],[4]]),run(2,3,'2026-11-01',[[5,F('Functional','Critical',4,'Leak at 6 bar')],[6]]),run(3,2,'2026-11-02',[[1],[2],[3],[4,F('Surface','Minor',9,'Visible tool marks')]]),run(4,1,'2026-11-03',[[1],[2]])]};
+}
+let S=(()=>{try{const r=localStorage.getItem(KEY);if(r)return JSON.parse(r)}catch(e){}return seed()})(),sel=null,armed=false;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const crit=id=>S.criteria.find(c=>c.id===id)||{name:'(removed)',stage:'Final',spec:''},insp=id=>S.inspectors.find(i=>i.id===id)||{name:'Unknown'},bat=id=>S.batches.find(b=>b.id===id)||{no:'?'};
+const defects=()=>S.inspections.flatMap(i=>i.results.filter(r=>!r.pass).map(r=>({...r.defect,cid:r.cid,b:i.batchId,by:i.inspId,date:i.date,stage:crit(r.cid).stage})));
+function st(b){
+ if(b.hold)return'Hold';
+ const last={};S.inspections.filter(i=>i.batchId===b.id).sort((x,y)=>(x.date>y.date)-(x.date<y.date)).forEach(i=>i.results.forEach(r=>last[r.cid]=r));
+ const rs=Object.values(last);if(!rs.length)return'Pending';
+ const f=rs.filter(r=>!r.pass);if(f.some(r=>r.defect&&r.defect.sev==='Critical'))return'Rejected';
+ if(f.length)return'Rework';
+ return S.criteria.filter(c=>c.active).every(c=>last[c.id])?'Approved':'In inspection';
+}
+const defTable=(D,sb)=>`<div class="tw"><table><thead><tr><th>Date</th>${sb?'<th>Batch</th>':''}<th>Criterion</th><th>Type</th><th>Severity</th><th class="r">Units</th><th>Inspector</th><th>Note</th></tr></thead><tbody>${D.slice().sort((a,b)=>(a.date<b.date)-(a.date>b.date)).map(x=>`<tr><td>${x.date}</td>${sb?`<td class="mono">${esc(bat(x.b).no)}</td>`:''}<td>${esc(crit(x.cid).name)}</td><td>${esc(x.type)}</td><td>${chip(x.sev,sevc[x.sev])}</td><td class="r">${x.qty}</td><td>${esc(insp(x.by).name)}</td><td>${esc(x.note)}</td></tr>`).join('')}</tbody></table></div>`;
+function detail(){
+ const b=S.batches.find(x=>x.id===sel);if(!b)return'';
+ const h=S.inspections.filter(i=>i.batchId===b.id).sort((x,y)=>(x.date<y.date)-(x.date>y.date)),D=defects().filter(x=>x.b===b.id);
+ return `<section class="card"><div class="hd"><div><h2><span class="mono">${esc(b.no)}</span> ${esc(b.product)}</h2><p class="mu">${b.qty} units, ${esc(b.line)}, produced ${b.date}</p></div>${chip(st(b))}</div>
+ <div class="btns"><button data-a="insp" data-id="${b.id}">Record inspection</button><button class="ghost" data-a="hold" data-id="${b.id}">${b.hold?'Release hold':'Place on hold'}</button><button class="ghost" data-a="close">Close</button></div>
+ <h3>Inspection history</h3>${h.length?`<ul class="ls">${h.map(i=>{const f=i.results.filter(r=>!r.pass).length;return `<li>${i.date}: ${esc(insp(i.inspId).name)} checked ${i.results.length} criteria, ${f?f+' failed':'all passed'}</li>`}).join('')}</ul>`:'<p class="mu">No inspections yet.</p>'}
+ <h3>Defects</h3>${D.length?defTable(D,false):'<p class="mu">No defects recorded.</p>'}</section>`;
+}
+function vBatches(){
+ const D=defects(),rows=S.batches.map(b=>`<tr data-a="sel" data-id="${b.id}" class="${sel===b.id?'on':''}" tabindex="0"><td class="mono">${esc(b.no)}</td><td>${esc(b.product)}</td><td>${esc(b.line)}</td><td class="r">${b.qty}</td><td>${chip(st(b))}</td><td class="r">${S.inspections.filter(i=>i.batchId===b.id).length}</td><td class="r">${sum(D.filter(x=>x.b===b.id))}</td></tr>`).join('');
+ return `${detail()}<section class="card"><h2>Batches</h2><div class="tw"><table><thead><tr><th>Batch</th><th>Product</th><th>Line</th><th class="r">Qty</th><th>Status</th><th class="r">Inspections</th><th class="r">Defective units</th></tr></thead><tbody>${rows||empty}</tbody></table></div><p class="mu">Select a batch to see its history, record an inspection or place it on hold.</p></section>
+ <section class="card"><h2>Add a batch</h2><form id="fb" class="fg"><label>Batch number<input name="no" required placeholder="B-2611-${String(S.batches.length+1).padStart(3,'0')}"></label><label>Product<input name="p" required></label><label>Quantity<input type="number" name="q" min="1" required></label><label>Line or stage<input name="l" required placeholder="Line A"></label><label>Production date<input type="date" name="d" value="${today()}"></label><button>Add batch</button></form><p id="msg" class="msg" role="alert"></p></section>`;
+}
+const rows=s=>{const l=S.criteria.filter(c=>c.active&&c.stage===s);return l.length?l.map(c=>`<fieldset class="cr"><legend>${esc(c.name)}</legend><p class="mu">${esc(c.spec)}</p><div class="pf"><label><input type="radio" name="r${c.id}" value="p">Pass</label><label><input type="radio" name="r${c.id}" value="f">Fail</label></div><div class="def fg"><label>Defect type<select name="t${c.id}">${opt(DT)}</select></label><label>Severity<select name="v${c.id}">${opt(SV)}</select></label><label>Units affected<input type="number" min="1" value="1" name="n${c.id}"></label><label>Note<input name="o${c.id}" maxlength="120"></label></div></fieldset>`).join(''):'<p class="mu">No active criteria for this stage. Add one under Criteria.</p>'};
+function vInspect(){
+ return `<section class="card"><h2>Record an inspection</h2><form id="fi"><div class="fg"><label>Batch<select name="b">${S.batches.map(b=>`<option value="${b.id}"${b.id===sel?' selected':''}>${esc(b.no)} ${esc(b.product)}</option>`).join('')}</select></label><label>Inspector<select name="i">${S.inspectors.map(i=>`<option value="${i.id}">${esc(i.name)} (${esc(i.code)})</option>`).join('')}</select></label><label>Date<input type="date" name="d" value="${today()}"></label><label>Stage<select name="s">${opt(T)}</select></label></div><div id="rows">${rows(T[0])}</div><p id="msg" class="msg" role="alert"></p><button>Save inspection</button></form></section>`;
+}
+function vCriteria(){
+ return `<section class="card"><h2>Inspection criteria</h2><div class="tw"><table><thead><tr><th>Criterion</th><th>Stage</th><th>Specification</th><th>Status</th><th></th></tr></thead><tbody>${S.criteria.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.stage}</td><td>${esc(c.spec)}</td><td>${c.active?'Active':'Retired'}</td><td><button class="ghost" data-a="tog" data-id="${c.id}">${c.active?'Retire':'Reactivate'}</button></td></tr>`).join('')||empty}</tbody></table></div><p class="mu">Only active criteria appear on the inspection form. Retiring a criterion keeps its past results.</p></section>
+ <section class="card"><h2>Add a criterion</h2><form id="fc" class="fg"><label>Name<input name="n" required></label><label>Stage<select name="s">${opt(T)}</select></label><label>Specification<input name="p" required placeholder="What counts as a pass"></label><button>Add criterion</button></form></section>`;
+}
+function vInspectors(){
+ return `<section class="card"><h2>Inspectors</h2><div class="tw"><table><thead><tr><th>Name</th><th>ID</th><th>Role or station</th><th class="r">Inspections</th><th class="r">Check pass rate</th></tr></thead><tbody>${S.inspectors.map(p=>{const is=S.inspections.filter(i=>i.inspId===p.id),ck=is.flatMap(i=>i.results),ps=ck.filter(r=>r.pass).length;return `<tr><td>${esc(p.name)}</td><td class="mono">${esc(p.code)}</td><td>${esc(p.role)}</td><td class="r">${is.length}</td><td class="r">${ck.length?Math.round(100*ps/ck.length)+'%':'n/a'}</td></tr>`}).join('')||empty}</tbody></table></div></section>
+ <section class="card"><h2>Add an inspector</h2><form id="fp" class="fg"><label>Name<input name="n" required></label><label>Employee ID<input name="c" required></label><label>Role or station<input name="r" required></label><button>Add inspector</button></form></section>`;
+}
+function vReports(){
+ const D=defects(),ck=S.inspections.flatMap(i=>i.results),fl=ck.filter(r=>!r.pass),ss=S.batches.map(st),n=s=>ss.filter(x=>x===s).length;
+ const kp=[['Batches',S.batches.length],['Check pass rate',ck.length?Math.round(100*(1-fl.length/ck.length))+'%':'n/a'],['Defect records',D.length],['Batches needing action',n('Rework')+n('Rejected')+n('Hold')]];
+ const sg=T.map(s=>{const c=ck.filter(r=>crit(r.cid).stage===s),f=c.filter(r=>!r.pass).length;return{s,c:c.length,f,p:c.length?100*f/c.length:0,u:sum(D.filter(x=>x.stage===s))}}),hot=Math.max(...sg.map(x=>x.p));
+ const cr=S.criteria.map(c=>{const r=ck.filter(x=>x.cid===c.id),f=r.filter(x=>!x.pass).length;return{c,n:r.length,f,p:r.length?100*f/r.length:0}}).filter(x=>x.n).sort((a,b)=>b.p-a.p);
+ const pb=S.batches.map(b=>({b,s:st(b),f:S.inspections.filter(i=>i.batchId===b.id).flatMap(i=>i.results).filter(r=>!r.pass).length,u:sum(D.filter(x=>x.b===b.id))})).filter(x=>x.u||x.s==='Hold').sort((a,b)=>b.u-a.u);
+ return `<section class="card"><h2>Quality summary</h2><div class="kp">${kp.map(k=>`<div><span class="mu">${k[0]}</span><b>${k[1]}</b></div>`).join('')}</div></section>
+ <section class="card"><h2>Where checks fail by stage</h2><div class="strip">${sg.map(x=>`<div class="stg${hot>0&&x.p===hot?' hot':''}"><strong>${x.s}</strong><b>${x.c?Math.round(x.p)+'%':'n/a'}</b>${bar(x.p,'no')}<p class="mu">${x.f} of ${x.c} checks failed, ${x.u} defective units</p></div>`).join('')}</div></section>
+ <section class="card"><h2>Batch status mix</h2><div class="mix">${SO.map(s=>n(s)?`<span class="${stc[s]}" style="width:${100*n(s)/S.batches.length}%" title="${s}"></span>`:'').join('')}</div><div class="lgs">${SO.map(s=>`<span class="lg ${stc[s]}"><i></i>${s} ${n(s)}</span>`).join('')}</div></section>
+ <section class="card"><h2>Criteria that fail most</h2><div class="tw"><table><thead><tr><th>Criterion</th><th>Stage</th><th class="r">Checks</th><th class="r">Failed</th><th>Fail rate</th></tr></thead><tbody>${cr.map(x=>`<tr><td>${esc(x.c.name)}</td><td>${x.c.stage}</td><td class="r">${x.n}</td><td class="r">${x.f}</td><td>${bar(x.p,'no')} ${Math.round(x.p)}%</td></tr>`).join('')||empty}</tbody></table></div></section>
+ <section class="card"><h2>Problem batches</h2><div class="tw"><table><thead><tr><th>Batch</th><th>Product</th><th>Status</th><th class="r">Failed checks</th><th class="r">Defective units</th></tr></thead><tbody>${pb.map(x=>`<tr data-a="sel" data-id="${x.b.id}" tabindex="0"><td class="mono">${esc(x.b.no)}</td><td>${esc(x.b.product)}</td><td>${chip(x.s)}</td><td class="r">${x.f}</td><td class="r">${x.u}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">No problem batches.</td></tr>'}</tbody></table></div></section>
+ <section class="card"><h2>Defect log</h2>${D.length?defTable(D,true):'<p class="mu">No defects recorded.</p>'}</section>`;
+}
+const V={batches:vBatches,inspect:vInspect,reports:vReports,criteria:vCriteria,inspectors:vInspectors};
+function render(){
+ const t=location.hash.slice(1);const tab=V[t]?t:'batches';
+ q('#app').innerHTML=V[tab]();
+ document.querySelectorAll('#nav a').forEach(a=>a.getAttribute('href')==='#'+tab?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'));
+}
+const go=t=>location.hash==='#'+t?render():(location.hash=t),msg=m=>{const e=q('#msg');if(e)e.textContent=m};
+addEventListener('hashchange',()=>{render();scrollTo(0,0)});
+document.addEventListener('click',e=>{
+ const a=e.target.closest('[data-a]');if(!a)return;const id=a.dataset.id,k=a.dataset.a;
+ if(k==='sel'){sel=id;go('batches');scrollTo(0,0)}
+ else if(k==='insp'){sel=id;go('inspect')}
+ else if(k==='close'){sel=null;render()}
+ else if(k==='hold'){const b=S.batches.find(x=>x.id===id);b.hold=!b.hold;save();render()}
+ else if(k==='tog'){const c=S.criteria.find(x=>x.id===id);c.active=!c.active;save();render()}
+ else if(k==='reset'){if(!armed){armed=true;a.textContent='Click again to reset all data';return}S=seed();save();sel=null;armed=false;a.textContent='Reset demo data';render()}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('tr[data-a]'))e.target.click()});
+document.addEventListener('change',e=>{if(e.target.matches('#fi [name=s]'))q('#rows').innerHTML=rows(e.target.value)});
+document.addEventListener('submit',e=>{
+ e.preventDefault();const f=new FormData(e.target),id=e.target.id;
+ if(id==='fb'){const no=f.get('no').trim();if(S.batches.some(b=>b.no.toLowerCase()===no.toLowerCase()))return msg('Batch number '+no+' already exists. Use a different number.');
+  S.batches.push({id:uid('b'),no,product:f.get('p').trim(),qty:+f.get('q'),line:f.get('l').trim(),date:f.get('d')||today(),hold:false});save();render()}
+ else if(id==='fc'){S.criteria.push({id:uid('c'),name:f.get('n').trim(),stage:f.get('s'),spec:f.get('p').trim(),active:true});save();render()}
+ else if(id==='fp'){S.inspectors.push({id:uid('i'),name:f.get('n').trim(),code:f.get('c').trim(),role:f.get('r').trim()});save();render()}
+ else if(id==='fi'){
+  if(!f.get('b')||!f.get('i'))return msg('Choose a batch and an inspector first. Add them under Batches or Inspectors if the lists are empty.');
+  const l=S.criteria.filter(c=>c.active&&c.stage===f.get('s')),res=[];
+  if(!l.length)return msg('This stage has no active criteria. Add one under Criteria.');
+  for(const c of l){const v=f.get('r'+c.id);if(!v)return msg('Mark pass or fail for “'+c.name+'”.');
+   res.push({cid:c.id,pass:v==='p',defect:v==='f'?{type:f.get('t'+c.id),sev:f.get('v'+c.id),qty:Math.max(1,+f.get('n'+c.id)||1),note:(f.get('o'+c.id)||'').trim()}:null})}
+  S.inspections.push({id:uid('n'),batchId:f.get('b'),inspId:f.get('i'),date:f.get('d')||today(),results:res});save();sel=f.get('b');go('batches');scrollTo(0,0)}
+});
+render();
+</script></body></html>
